@@ -17,6 +17,8 @@ vesselValues = soup.find_all('table', attrs={'border':'1'})
 vesselValues.pop(0)
 vessels = []
 vesselDateArr = []
+vesselNames = []
+tempVesselNames = []
 
 # Parse dates
 for i in vesselDates:
@@ -30,7 +32,7 @@ for vesselIndex, j in enumerate(vesselValues):
     cellIndex = 0
     rowData = []
     for cell in cells:
-        rowData.append("".join(cell.string.split()))
+        rowData.append(cell.string.strip())
         cellIndex += 1
 
         if(cellIndex == 5):
@@ -41,66 +43,42 @@ for vesselIndex, j in enumerate(vesselValues):
                 "Vessel": rowData[3],
                 "Loa": rowData[4]
             })
+            tempVesselNames.append(rowData[3])
 
             cellIndex = 0
             rowData = []
 
 print("============= HTML PARSING =================")
 print(vessels)
-""" # psuedocode
-vesel = [
-    {
-        "date": "Wednesday, 28 Sep 2022",
-        "data": [
-            {
-                "Time": "06:06*",
-                "From": "aubwt",
-                "To": "D2",
-                "Vessel": "Key West",
-                "Loa": "180"
-            },
-            {
-                "Time": "06:06*",
-                "From": "aubwt",
-                "To": "D2",
-                "Vessel": "Key West",
-                "Loa": "180"
-            }
-        ]
-    },
-    {
-        "date": "Wednesday, 28 Sep 2022",
-        "data": [
-            {
-                "Time": "06:06*",
-                "From": "aubwt",
-                "To": "D2",
-                "Vessel": "Key West",
-                "Loa": "180"
-            },
-            {
-                "Time": "06:06*",
-                "From": "aubwt",
-                "To": "D2",
-                "Vessel": "Key West",
-                "Loa": "180"
-            }
-        ]
-    }
-    ]
-"""
+print(tempVesselNames)
 
 # TODO: parse CSV data to draw comparisons between Mobile Movements and the BV Shipping List (ask rizwan bhai how it works)
 print("============= SHEET READING =================")
 shippingSheet = pd.read_excel("BV Shipping List 2022 - Email.xlsm", sheet_name=None)
-print(shippingSheet)
+shippingSheetName, df = next(iter(shippingSheet.items()))
+df.columns = df.iloc[1]
+df = df[2:]
+
+# column cleanup
+df = df[df['VESSEL'].notna()]
+
+colVessel = df["VESSEL"]
+for vessel in colVessel:
+    print(vessel)
+
+# Comparison between vessels and colVessel
+for day in vessels:
+    for vesselName in day['data']:
+        if(vesselName['Vessel'] in tempVesselNames):
+            vesselNames.append(vesselName['Vessel'])
+
 
 # TODO: create new xlsm as target
 print("============= SHEET CREATED =================")
 wb = Workbook()
 ws = wb.active
 ws['A1'] = 42
-ws.append([1, 2, 3])
+ws.append(vesselNames)
 wb.save('new_document.xlsm')
 wb = load_workbook('new_document.xlsm', keep_vba=True)
 wb.save('new_document.xlsm')
