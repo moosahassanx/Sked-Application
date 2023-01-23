@@ -11,6 +11,8 @@ import pandas as pd
 import xlrd
 from openpyxl import Workbook, load_workbook
 import xlsxwriter
+import io
+import base64
 
 def show_sked_page():
     st.title('Sked Software')
@@ -59,62 +61,26 @@ def show_sked_page():
                     rowData = []
 
 
-        st.text('============= nccports.portauthoritynsw.com.au reading =================')
-        st.text(vessels)
-        st.text(tempVesselNames)
+        st.header('NCCPorts Shipping Movements Data Reading')
+        st.table(vessels)
+        st.header('Extracting vessel names')
+        st.table(tempVesselNames)
 
-        # TODO: parse CSV data to draw comparisons between Mobile Movements and the BV Shipping List (ask rizwan bhai how it works)
-        st.text("============= Reading BV Shipping List VESSELS =================")
-        shippingSheet = pd.read_excel("BV Shipping List 2022 - Email.xlsm", sheet_name=None)
-        shippingSheetName, df = next(iter(shippingSheet.items()))
-        df.columns = df.iloc[1]
-        df = df[2:]
+        # create the excel file
+        df = pd.DataFrame(tempVesselNames)
+        filename = 'my_objects.xlsx'
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        writer.save()
 
-        # column cleanup
-        df = df[df['VESSEL'].notna()]
+        @st.cache(allow_output_mutation=True)
+        def serve_excel():
+            return open(filename, "rb").read()
 
-        colVessel = df["VESSEL"]
-        for vessel in colVessel:
-            st.text(vessel)
-
-        # Comparison between vessels and colVessel
-        for day in vessels:
-            for vesselName in day['data']:
-                if(vesselName['Vessel'] in tempVesselNames):
-                    vesselNames.append(vesselName['Vessel'])
-
-        # TODO: create new xlsm as target
-        st.text("============= PLACEHOLDER SHEET =================")
-        # wb = Workbook()
-        # ws = wb.active
-        # ws['A1'] = 42
-        # ws.append(vesselNames)
-        # wb.save('new_document.xlsm')
-        # wb = load_workbook('new_document.xlsm', keep_vba=True)
-        # wb.save('new_document.xlsm')
-
-        # output = BytesIO()
-        # workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-        # worksheet = workbook.add_worksheet()
-
-        # worksheet.write('A1', 'Hello')
-        # workbook.close()
-
-        st.write('============================= FILE DOWNLOADING  ======================')
-        # https://xlsxwriter.readthedocs.io/
-        output = BytesIO()
-        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-        worksheet = workbook.add_worksheet()
-        fileName = datetime.today().strftime('%Y-%m-%d') + ' Sheet1.xlsx'
-
-        worksheet.write('A1', 'Hello')
-        workbook.close()
-
-        st.download_button(
-            label="Download Sheet1",
-            data=output.getvalue(),
-            file_name=fileName,
-            mime="application/vnd.ms-excel"
-        )
-
-        
+        if st.button("Download Excel File"):
+            st.write("Downloading...")
+            b = serve_excel()
+            b64 = base64.b64encode(b).decode()  # some strings <-> bytes conversions necessary here
+            href = f'<a href="data:file/xlsx;base64,{b64}">Download</a>'
+            st.markdown(href, unsafe_allow_html=True)
+                
